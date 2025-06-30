@@ -1,9 +1,9 @@
-# server/events/routes.py
 from flask import Blueprint, request, session, jsonify
 from models import db, Event, User
 
 events_bp = Blueprint("events", __name__, url_prefix="/events")
 
+# Admin: Create public event
 @events_bp.route("", methods=["POST"])
 def create_event():
     user_id = session.get("user_id")
@@ -20,6 +20,7 @@ def create_event():
         title=data.get("title"),
         description=data.get("description"),
         date=data.get("date"),
+        image_url=data.get("image_url"),  # ✅ NEW
         user_id=user_id
     )
 
@@ -27,9 +28,7 @@ def create_event():
     db.session.commit()
     return jsonify(event.to_dict()), 201
 
-
-
-# GET public events (admin-only events)
+# GET public events (admin-created)
 @events_bp.route("", methods=["GET"])
 def get_events():
     admins = User.query.filter_by(is_admin=True).all()
@@ -47,7 +46,7 @@ def my_events():
     events = Event.query.filter_by(user_id=user_id).all()
     return jsonify([e.to_dict() for e in events]), 200
 
-# PATCH / DELETE by owner or admin
+# PATCH / DELETE event
 @events_bp.route("/<int:id>", methods=["PATCH", "DELETE"])
 def modify_event(id):
     user_id = session.get("user_id")
@@ -57,7 +56,7 @@ def modify_event(id):
     user = User.query.get(user_id)
     event = Event.query.get_or_404(id)
 
-    # Only admin or owner
+    # Only owner or admin can edit/delete
     if event.user_id != user_id and not user.is_admin:
         return {"error": "Forbidden"}, 403
 
@@ -66,6 +65,7 @@ def modify_event(id):
         event.title = data.get("title", event.title)
         event.description = data.get("description", event.description)
         event.date = data.get("date", event.date)
+        event.image_url = data.get("image_url", event.image_url)  # ✅ FIXED placement
         db.session.commit()
         return jsonify(event.to_dict()), 200
 

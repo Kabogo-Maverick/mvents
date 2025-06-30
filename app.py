@@ -8,6 +8,9 @@ from events.routes import events_bp
 
 # Create the app from factory
 app = create_app()
+app.static_folder = 'static'
+
+
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix="/auth")
