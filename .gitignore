@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+env/
+.Python
+pip-selfcheck.json
+
+# Flask session data
+instance/
+flask_session/
+*.sqlite3
+
+# Logs
+*.log
+
+# DB migrations
+migrations/__pycache__/
+migrations/versions/__pycache__/
+
+# System files
+.DS_Store
+*.swp
+
+# VS Code
+.vscode/
+.idea/

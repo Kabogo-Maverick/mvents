@@ -39,10 +39,17 @@ def logout():
     session.pop("user_id", None)
     return jsonify({"message": "Logged out"}), 200
 
-@auth_bp.route("/check_session")
+
+
+@auth_bp.route("/check")
 def check_session():
     user_id = session.get("user_id")
-    if user_id:
-        user = User.query.get(user_id)
-        return jsonify(user.to_dict()), 200
-    return jsonify({"error": "Unauthorized"}), 401
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    from models import User
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return jsonify(user.to_dict()), 200
