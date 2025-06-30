@@ -1,14 +1,12 @@
 # server/models.py
-from flask_sqlalchemy import SQLAlchemy
+from config import db
 from werkzeug.security import generate_password_hash, check_password_hash
 
-db = SQLAlchemy()
-
 class User(db.Model):
-    __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(512), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -17,20 +15,18 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
-        return {"id": self.id, "username": self.username}
-
-
-
+        return {
+            "id": self.id,
+            "username": self.username,
+            "is_admin": self.is_admin,
+        }
 
 class Event(db.Model):
-    __tablename__ = "events"
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(150), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    date = db.Column(db.String, nullable=False)
-
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    user = db.relationship("User", backref="events")
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(200), nullable=False)
+    date = db.Column(db.String(50), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     def to_dict(self):
         return {
@@ -38,5 +34,5 @@ class Event(db.Model):
             "title": self.title,
             "description": self.description,
             "date": self.date,
-            "user_id": self.user_id,
+            "user_id": self.user_id
         }

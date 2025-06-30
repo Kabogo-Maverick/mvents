@@ -1,29 +1,20 @@
+# server/app.py
+
 from flask import Flask
-from flask_migrate import Migrate
-from flask_session import Session
 from flask_cors import CORS
+from config import create_app, db
+from auth.routes import auth_bp
+from events.routes import events_bp
 
-from config import Config
-from models import db
-from auth import auth_bp
-from events import events_bp
-
-app = Flask(__name__)
-app.config.from_object(Config)
-
-# Init extensions
-db.init_app(app)
-migrate = Migrate(app, db)
-Session(app)
-CORS(app, supports_credentials=True)
+# Create the app from factory
+app = create_app()
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix="/auth")
-app.register_blueprint(events_bp)
+app.register_blueprint(events_bp, url_prefix="/events")
 
-@app.route("/")
-def index():
-    return {"message": "Mkay Events Backend Running!"}
+# CORS already handled inside config.py -> create_app()
 
-if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+# Create tables
+with app.app_context():
+    db.create_all()

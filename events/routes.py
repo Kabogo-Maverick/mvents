@@ -1,66 +1,75 @@
+# server/events/routes.py
 from flask import Blueprint, request, session, jsonify
-from models import db, Event
+from models import db, Event, User
 
-events_bp = Blueprint("events", __name__)
+events_bp = Blueprint("events", __name__, url_prefix="/events")
 
-@events_bp.route("/events", methods=["POST"])
+@events_bp.route("", methods=["POST"])
 def create_event():
     user_id = session.get("user_id")
     if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+        return {"error": "Unauthorized"}, 401
+
+    user = User.query.get(user_id)
+    if not user.is_admin:
+        return {"error": "Forbidden: Admins only can create events"}, 403
 
     data = request.get_json()
+
     event = Event(
-        title=data["title"],
-        description=data["description"],
-        date=data["date"],
+        title=data.get("title"),
+        description=data.get("description"),
+        date=data.get("date"),
         user_id=user_id
     )
+
     db.session.add(event)
     db.session.commit()
     return jsonify(event.to_dict()), 201
 
-@events_bp.route("/events", methods=["GET"])
+
+
+# GET public events (admin-only events)
+@events_bp.route("", methods=["GET"])
 def get_events():
-    events = Event.query.all()
-    return jsonify([event.to_dict() for event in events]), 200
+    admins = User.query.filter_by(is_admin=True).all()
+    admin_ids = [admin.id for admin in admins]
+    events = Event.query.filter(Event.user_id.in_(admin_ids)).all()
+    return jsonify([e.to_dict() for e in events]), 200
 
-# 🔁 UPDATE EVENT
-@events_bp.route("/events/<int:event_id>", methods=["PATCH"])
-def update_event(event_id):
+# GET personal events
+@events_bp.route("/mine", methods=["GET"])
+def my_events():
     user_id = session.get("user_id")
     if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+        return {"error": "Unauthorized"}, 401
 
-    event = Event.query.get(event_id)
-    if not event:
-        return jsonify({"error": "Event not found"}), 404
+    events = Event.query.filter_by(user_id=user_id).all()
+    return jsonify([e.to_dict() for e in events]), 200
 
-    if event.user_id != user_id:
-        return jsonify({"error": "Forbidden"}), 403
-
-    data = request.get_json()
-    event.title = data.get("title", event.title)
-    event.description = data.get("description", event.description)
-    event.date = data.get("date", event.date)
-
-    db.session.commit()
-    return jsonify(event.to_dict()), 200
-
-# ❌ DELETE EVENT
-@events_bp.route("/events/<int:event_id>", methods=["DELETE"])
-def delete_event(event_id):
+# PATCH / DELETE by owner or admin
+@events_bp.route("/<int:id>", methods=["PATCH", "DELETE"])
+def modify_event(id):
     user_id = session.get("user_id")
     if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+        return {"error": "Unauthorized"}, 401
 
-    event = Event.query.get(event_id)
-    if not event:
-        return jsonify({"error": "Event not found"}), 404
+    user = User.query.get(user_id)
+    event = Event.query.get_or_404(id)
 
-    if event.user_id != user_id:
-        return jsonify({"error": "Forbidden"}), 403
+    # Only admin or owner
+    if event.user_id != user_id and not user.is_admin:
+        return {"error": "Forbidden"}, 403
 
-    db.session.delete(event)
-    db.session.commit()
-    return jsonify({"message": "Event deleted"}), 200
+    if request.method == "PATCH":
+        data = request.get_json()
+        event.title = data.get("title", event.title)
+        event.description = data.get("description", event.description)
+        event.date = data.get("date", event.date)
+        db.session.commit()
+        return jsonify(event.to_dict()), 200
+
+    if request.method == "DELETE":
+        db.session.delete(event)
+        db.session.commit()
+        return jsonify({"message": "Deleted"}), 200
